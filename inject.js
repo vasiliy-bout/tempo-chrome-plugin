@@ -22,12 +22,19 @@
     var lastRequestsNumber = 0;
 
     function updateFormInputs(form, request_number) {
-        let inputs = form.getElementsByTagName("input");
-        let timeSpentSeconds = inputs.namedItem("timeSpentSeconds");
+        let handler;
         if (request_number > 0) {
-            timeSpentSeconds.setAttribute("disabled", "disabled");
+            handler = function(input) {
+                input.setAttribute("disabled", "disabled");
+            };
         } else {
-            timeSpentSeconds.removeAttribute("disabled");
+            handler = function(input) {
+                input.removeAttribute("disabled");
+            };
+        }
+
+        for (let input of form.getElementsByTagName("input")) {
+            handler(input);
         }
     }
 
