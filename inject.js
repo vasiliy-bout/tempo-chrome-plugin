@@ -1,5 +1,3 @@
-// this is the code which will be injected into a given page...
-
 (function () {
     const LOG_PREFIX = "[FIX TEMPO PLUGIN]:";
     const DEBUG_ENABLED = false;
@@ -18,85 +16,45 @@
         }
     }
 
+    // noinspection ES6ConvertVarToLetConst
+    var currentForm = null;
+    // noinspection ES6ConvertVarToLetConst
+    var lastRequestsNumber = 0;
 
-    registerFormObserver();
-
-    function formObserverCallback(mutationsList, observer) {
-        for (let mutation of mutationsList) {
-            if (mutation.type === 'attributes') {
-                if (mutation.attributeName === "value") {
-                    if (mutation.target.changesState) {
-                        mutation.target.changesState.handleValueChange();
-                    } else {
-                        error("NO STATE FOUND", mutation);
-                    }
-                }
-            }
+    function updateFormInputs(form, request_number) {
+        let inputs = form.getElementsByTagName("input");
+        let timeSpentSeconds = inputs.namedItem("timeSpentSeconds");
+        if (request_number > 0) {
+            timeSpentSeconds.setAttribute("disabled", "disabled");
+        } else {
+            timeSpentSeconds.removeAttribute("disabled");
         }
     }
-    let formObserver = new MutationObserver(formObserverCallback);
 
-    function worklogFormRemovedHandler(form) {
-        formObserver.disconnect();
-        log("Worklog form observer disconnected");
-    }
+    registerFormObserver({
+        "onFormAdded": function (form) {
+            // noinspection ReuseOfLocalVariableJS
+            currentForm = form;
 
-    function worklogFormAddedHandler(form) {
-        log('Worklog form found', form);
-
-        function State(input) {
-            const self = this;
-            self.target = input;
-            self.target.changesState = self;
-
-            self.oldValue = self.target.value;
-            self.hadInputEvent = false;
-
-            self.dumpToLog = function () {
-                debug("    ", "self.oldValue", self.oldValue);
-                debug("    ", "self.hadInputEvent", self.hadInputEvent);
-                debug("    ", "self.target.value", self.target.value);
-            };
-
-            self.handleValueChange = function () {
-                debug("Value change detected for target", self.target);
-                self.dumpToLog();
-
-                if (!self.hadInputEvent && self.oldValue !== self.target.value) {
-                    log("Revert value", self.target.value, " -> ", self.oldValue);
-                    self.target.value = self.oldValue;
-                    self.target.setAttribute("value", self.oldValue);
-                    debug("Value reverted for target", self.target.value, self.target);
-                }
-                self.hadInputEvent = false;
-                self.oldValue = self.target.value;
-
-                debug("State updated to");
-                self.dumpToLog();
-            };
-
-            self.startTracking = function () {
-                self.target.addEventListener("input", function (e) {
-                    self.hadInputEvent = true;
-                    debug("Input detected for target", e.data, self.target);
-                });
-
-                let config = {
-                    attributes: true,
-                    childList: false,
-                    subtree: false
-                };
-                formObserver.observe(self.target, config);
-
-                log("Observer registered for target", self.target);
-            };
+            updateFormInputs(currentForm, lastRequestsNumber);
+        },
+        "onFormRemoved": function (form) {
+            // noinspection ReuseOfLocalVariableJS
+            currentForm = null;
         }
+    });
 
-        let timeSpentSeconds = form.getElementsByTagName("input").namedItem("timeSpentSeconds");
-        new State(timeSpentSeconds).startTracking();
-    }
 
-    function registerFormObserver() {
+    setupRequestsTracker(function (request_number) {
+        // noinspection ReuseOfLocalVariableJS
+        lastRequestsNumber = request_number;
+
+        if (currentForm != null) {
+            updateFormInputs(currentForm, request_number);
+        }
+    });
+
+    function registerFormObserver(callbacks) {
         function findWorklogForm(nodesList) {
             for (let node of nodesList) {
                 if (node instanceof HTMLElement) {
@@ -110,19 +68,19 @@
             return null;
         }
 
-        let callback = function (mutationsList, observer) {
+        let globalCallback = function (mutationsList, observer) {
             for (let mutation of mutationsList) {
                 if (mutation.type === 'childList') {
-                    if (mutation.addedNodes) {
+                    if (mutation.addedNodes && callbacks.onFormAdded) {
                         let worklog = findWorklogForm(mutation.addedNodes);
                         if (worklog) {
-                            worklogFormAddedHandler(worklog);
+                            callbacks.onFormAdded(worklog);
                         }
                     }
-                    if (mutation.removedNodes) {
+                    if (mutation.removedNodes && callbacks.onFormRemoved) {
                         let worklog = findWorklogForm(mutation.removedNodes);
                         if (worklog) {
-                            worklogFormRemovedHandler(worklog);
+                            callbacks.onFormRemoved(worklog);
                         }
                     }
                 }
@@ -133,7 +91,24 @@
             childList: true,
             subtree: true
         };
-        let observer = new MutationObserver(callback);
+        let observer = new MutationObserver(globalCallback);
         observer.observe(document.body, config);
+    }
+
+    function setupRequestsTracker(callback) {
+        let request_number_change_callback = function (message) {
+            callback(message["request_number"]);
+        };
+
+        let content_callback = function (message, sender, sendResponse) {
+            if (message.type === "request_number_change") {
+                request_number_change_callback(message, sender, sendResponse);
+            } else {
+                console.error("Unexpected message:", message);
+            }
+        };
+        chrome.runtime.onMessage.addListener(content_callback);
+
+        chrome.runtime.sendMessage({"type": "new_tab"});
     }
 })();

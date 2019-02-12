@@ -1,10 +1,13 @@
 {
     "name": "Tempo UX fix",
-    "version": "0.0.1",
+    "version": "0.0.2",
     "manifest_version": 2,
     "description": "Adds JavaScript hooks that prevent values you enter from being dropped.",
     "permissions": [
-        "activeTab"
+        "activeTab",
+        "webRequest",
+        "http://app.tempo.io/*",
+        "https://app.tempo.io/*"
     ],
     "content_scripts": [
         {
@@ -15,5 +18,9 @@
             "js": ["inject.js"],
             "all_frames": true
         }
-    ]
+    ],
+    "background": {
+        "scripts": ["background.js"],
+        "persistent": true
+    }
 }
