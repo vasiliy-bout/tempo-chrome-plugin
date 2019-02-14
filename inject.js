@@ -21,6 +21,16 @@
     // noinspection ES6ConvertVarToLetConst
     var lastRequestsNumber = 0;
 
+    function moveFocusWhenDescriptionExists(form) {
+        let comment = form.getElementsByTagName("textarea").namedItem("comment");
+        if (comment && comment.value) {
+            let timeSpentSeconds = form.getElementsByTagName("input").namedItem("timeSpentSeconds");
+            if (timeSpentSeconds) {
+                timeSpentSeconds.focus();
+            }
+        }
+    }
+
     function updateFormInputs(form, request_number) {
         let handler;
         if (request_number > 0) {
@@ -36,6 +46,10 @@
         for (let input of form.getElementsByTagName("input")) {
             handler(input);
         }
+
+        if (request_number === 0) {
+            moveFocusWhenDescriptionExists(form);
+        }
     }
 
     registerFormObserver({
@@ -43,7 +57,7 @@
             // noinspection ReuseOfLocalVariableJS
             currentForm = form;
 
-            updateFormInputs(currentForm, lastRequestsNumber);
+            updateFormInputs(form, lastRequestsNumber);
         },
         "onFormRemoved": function (form) {
             // noinspection ReuseOfLocalVariableJS
