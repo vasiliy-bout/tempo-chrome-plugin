@@ -1,6 +1,6 @@
 {
     "name": "Tempo UX fix",
-    "version": "0.1.1",
+    "version": "0.1.2",
     "manifest_version": 2,
     "description": "Adds JavaScript hooks that prevent values you enter from being dropped.",
     "permissions": [

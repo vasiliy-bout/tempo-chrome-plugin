@@ -1,6 +1,5 @@
 (function () {
     const LOG_PREFIX = "[FIX TEMPO PLUGIN]:";
-    const DEBUG_ENABLED = false;
 
     function log() {
         console.log(LOG_PREFIX, ...arguments);
@@ -11,15 +10,15 @@
     }
 
     function debug() {
-        if (DEBUG_ENABLED) {
-            console.log(LOG_PREFIX, "[DEBUG]", ...arguments);
+        if (console.debug) {
+            console.debug(LOG_PREFIX, "[DEBUG]", ...arguments);
         }
     }
 
-    // noinspection ES6ConvertVarToLetConst
-    var currentForm = null;
-    // noinspection ES6ConvertVarToLetConst
-    var lastRequestsNumber = 0;
+    let currentState = {
+        form: null,
+        lastRequestsNumber: null
+    };
 
     function moveFocusWhenDescriptionExists(form) {
         let comment = form.getElementsByTagName("textarea").namedItem("comment");
@@ -54,24 +53,21 @@
 
     registerFormObserver({
         "onFormAdded": function (form) {
-            // noinspection ReuseOfLocalVariableJS
-            currentForm = form;
+            currentState.form = form;
 
-            updateFormInputs(form, lastRequestsNumber);
+            updateFormInputs(form, currentState.lastRequestsNumber);
         },
         "onFormRemoved": function (form) {
-            // noinspection ReuseOfLocalVariableJS
-            currentForm = null;
+            currentState.form = null;
         }
     });
 
 
     setupRequestsTracker(function (request_number) {
-        // noinspection ReuseOfLocalVariableJS
-        lastRequestsNumber = request_number;
+        currentState.lastRequestsNumber = request_number;
 
-        if (currentForm != null) {
-            updateFormInputs(currentForm, request_number);
+        if (currentState.form != null) {
+            updateFormInputs(currentState.form, request_number);
         }
     });
 
@@ -125,7 +121,7 @@
             if (message.type === "request_number_change") {
                 request_number_change_callback(message, sender, sendResponse);
             } else {
-                console.error("Unexpected message:", message);
+                error("Unexpected message:", message);
             }
         };
         chrome.runtime.onMessage.addListener(content_callback);
