@@ -17,48 +17,50 @@
 
     let currentState = {
         form: null,
+        hasInitialDescription: false,
         lastRequestsNumber: null
     };
 
-    function moveFocusWhenDescriptionExists(form) {
+    function descriptionExists(form) {
         let comment = form.getElementsByTagName("textarea").namedItem("comment");
-        if (comment && comment.value) {
-            let timeSpentSeconds = form.getElementsByTagName("input").namedItem("timeSpentSeconds");
-            if (timeSpentSeconds) {
-                timeSpentSeconds.focus();
-            }
+        return !!(comment && comment.value);
+    }
+
+    function focusElement(form, tagName, elementId) {
+        let element = form.getElementsByTagName(tagName).namedItem(elementId);
+        if (element) {
+            element.focus();
         }
     }
 
-    function updateFormInputs(form, request_number) {
-        let handler;
-        if (request_number > 0) {
-            handler = function(input) {
-                input.setAttribute("disabled", "disabled");
-            };
-        } else {
-            handler = function(input) {
-                input.removeAttribute("disabled");
-            };
-        }
+    function updateFormInputs(form, request_number, updateFocus) {
+        let handler = request_number > 0 ?
+            (input) => input.setAttribute("disabled", "disabled") :
+            (input) => input.removeAttribute("disabled");
 
         for (let input of form.getElementsByTagName("input")) {
             handler(input);
         }
+        for (let input of form.getElementsByTagName("textarea")) {
+            handler(input);
+        }
 
-        if (request_number === 0) {
-            moveFocusWhenDescriptionExists(form);
+        if (updateFocus && request_number === 0) {
+            focusElement(form, "input", "timeSpentSeconds");
         }
     }
 
     registerFormObserver({
         "onFormAdded": function (form) {
             currentState.form = form;
+            currentState.hasInitialDescription = descriptionExists(form);
 
-            updateFormInputs(form, currentState.lastRequestsNumber);
+            updateFormInputs(form, currentState.lastRequestsNumber,
+                currentState.hasInitialDescription);
         },
         "onFormRemoved": function (form) {
             currentState.form = null;
+            currentState.hasInitialDescription = false;
         }
     });
 
@@ -67,7 +69,7 @@
         currentState.lastRequestsNumber = request_number;
 
         if (currentState.form != null) {
-            updateFormInputs(currentState.form, request_number);
+            updateFormInputs(currentState.form, request_number, currentState.hasInitialDescription);
         }
     });
 
